@@ -6,8 +6,8 @@
 //
 
 #define NANO_DEVICE_ID        0000
-#define NANO_VERSION       "1.3.5"
-#define NANO_HEADER        "BNRDD"
+#define NANO_VERSION       "2.0.0a"
+#define NANO_HEADER        "BIRDD"
 #define NANO_CPM_FACTOR        334
 #define NANO_BQM2_FACTOR        37
 
@@ -131,7 +131,7 @@
 #define GEIGIE_TYPE_THRESHOLD 500
 
 // Voltage divider
-// GND -- R2 --A0 -- R1 -- VCC
+// GND -- R2 --A0 -- R1 -- VBAT
 // https://en.wikipedia.org/wiki/Voltage_divider
 #define VOLTAGE_PIN BAT_MEASURE
 #define VOLTAGE_R1 9100
