@@ -229,12 +229,10 @@ void setup()
   RGB.color(0, 0, 0);
 
   // Soft shutdown control
-  /*
   pinMode(PWR_ON, OUTPUT);
   digitalWrite(PWR_ON, HIGH); // keep power one
 
   pinMode(PWR_OFF, INPUT);  // sense power switch state
-  */
 
 #if ENABLE_SSD1306
   delay(1000);
@@ -303,25 +301,26 @@ void setup()
 void loop()
 {
   // Perform check for Soft shutdown
-  /*
-  int power_off_status = digitalRead(PWR_OFF); // pin read high when switch is off
-  Serial.println(power_off_status);
-  if (power_off_status == HIGH)
+  pinMode(PWR_OFF, INPUT);  // for some reason this needs to be here. maybe a bug with redbear duo
+  volatile int power_off_status = digitalRead(PWR_OFF); // pin read high when switch is off
+  if (power_off_status != LOW)
   {
-    Serial.println("Shutdown now");
+    DEBUG_PRINT("Shutdown now");
+    display.clearDisplay();
     display.setCursor(0, 0);
     display.print("Shutdown now");
     display.display();
     delay(1000);
     digitalWrite(PWR_ON, LOW);
+    while(1)
+      ;
   }
-  */
 
   bool gpsReady = false;
 
 #if ENABLE_GEIGIE_SWITCH
   // Check geigie mode switch
-  if (analogRead(GEIGIE_TYPE_PIN) > GEIGIE_TYPE_THRESHOLD) {
+  if (analogRead(GEIGIE_TYPE_PIN) < GEIGIE_TYPE_THRESHOLD) {
     config.type = GEIGIE_TYPE_B; // XGeigie;
   } else {
     config.type = GEIGIE_TYPE_X; // BGeigie
