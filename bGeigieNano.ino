@@ -236,7 +236,7 @@ void setup()
 
 #if ENABLE_SSD1306
   delay(1000);
-  display.begin(SSD1306_SWITCHCAPVCC, 0x3C);
+  display.begin(SSD1306_SWITCHCAPVCC, 0x3D);
   // show splashscreen logo
   display.display();
   
@@ -771,7 +771,7 @@ bool gps_gen_timestamp(TinyGPS &gps, char *buf, unsigned long counts, unsigned l
     uphour = uptime/3600;
     upminute = uptime/60 - uphour*60;
     sprintf(strbuffer, ("%02dh%02dm"), uphour, upminute);
-    display.setCursor(92, offset+24);
+    display.setCursor(91, offset+24);
     display.setTextSize(1);
     display.setTextColor(WHITE);
     display.println(strbuffer);
@@ -796,7 +796,7 @@ bool gps_gen_timestamp(TinyGPS &gps, char *buf, unsigned long counts, unsigned l
     display.setTextColor(WHITE);
     display.setTextSize(1);
     if (!gps.status()) {
-      display.setCursor(92, offset+8);
+      display.setCursor(91, offset+8);
       display.setTextColor(BLACK, WHITE); // 'inverted' text
       sprintf(strbuffer, ("No GPS"));
       display.println(strbuffer);
@@ -815,7 +815,7 @@ bool gps_gen_timestamp(TinyGPS &gps, char *buf, unsigned long counts, unsigned l
     display.setCursor(0, offset+16); // textsize*8
     if (config.mode == GEIGIE_MODE_USVH) {
       //dtostrf((float)(cpm/config.cpm_factor), 0, 3, strbuffer); // replace by sprintf
-      sprintf(strbuffer, "%.3f", (float)(cpm/config.cpm_factor));
+      sprintf(strbuffer, "%0.3f", (float)(cpm/config.cpm_factor));
       display.print(strbuffer);
       sprintf(strbuffer, (" uSv/h"));
       display.println(strbuffer);
@@ -832,7 +832,7 @@ bool gps_gen_timestamp(TinyGPS &gps, char *buf, unsigned long counts, unsigned l
       // Display distance
       //dtostrf((float)(gps_distance/1000.0), 0, 1, strbuffer); // replace by sprintf
       sprintf(strbuffer, "%.1f", (float)(gps_distance/1000.0));
-      display.setCursor(116-(strlen(strbuffer)*6), offset+16); // textsize*8
+      display.setCursor(115-(strlen(strbuffer)*6), offset+16); // textsize*8
       display.print(strbuffer);
       sprintf(strbuffer, ("km"));
       display.println(strbuffer);
@@ -844,7 +844,7 @@ bool gps_gen_timestamp(TinyGPS &gps, char *buf, unsigned long counts, unsigned l
       } else {
         sprintf(strbuffer, ("--"));
       }
-      display.setCursor(122-(strlen(strbuffer)*6), offset+16); // textsize*8
+      display.setCursor(121-(strlen(strbuffer)*6), offset+16); // textsize*8
       display.print(strbuffer);
       display.println("m");
     }
@@ -994,11 +994,11 @@ bool gps_gen_timestamp(TinyGPS &gps, char *buf, unsigned long counts, unsigned l
   if (battery > 8) battery = 8;
   
 if (config.type == GEIGIE_TYPE_X){
-display.drawRect(116, offset+24, 12, 7, WHITE);
-display.fillRect(118, offset+26, battery, 3, WHITE);
+display.drawRect(115, offset+24, 12, 7, WHITE);
+display.fillRect(117, offset+26, battery, 3, WHITE);
  } else {
-  display.drawRect(116, offset+0, 12, 7, WHITE);
-display.fillRect(118, offset+2, battery, 3, WHITE);
+  display.drawRect(115, offset+0, 12, 7, WHITE);
+display.fillRect(117, offset+2, battery, 3, WHITE);
 }
   display.display();
 #endif
