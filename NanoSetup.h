@@ -47,7 +47,6 @@
 typedef enum {
  GEIGIE_TYPE_B = 0,
  GEIGIE_TYPE_X,
- GEIGIE_TYPE_I
 } GeigieType;
 
 typedef enum {
