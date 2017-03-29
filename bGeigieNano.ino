@@ -48,6 +48,8 @@ SYSTEM_MODE(MANUAL);//do not connect to cloud
 #include "NanoConfig.h"
 #include "NanoDebug.h"
 
+#include "RotaryEncoder.h"
+
 #include "InterruptCounter.h"
 
 // For some reason (ask Musti) ARDUINO
@@ -62,6 +64,13 @@ SYSTEM_MODE(MANUAL);//do not connect to cloud
 #if ENABLE_SSD1306
 
 Adafruit_SSD1306 display(OLED_RESET);
+
+// The display state
+typedef enum {
+  DISPLAY_GEIGIE = 0,
+  DISPLAY_MENU,
+} DisplayState;
+DisplayState display_state = DISPLAY_GEIGIE;
 
 #if (SSD1306_LCDHEIGHT != 64)
 #error("Height incorrect, please change Adafruit_SSD1306.h!");
@@ -115,6 +124,7 @@ static char strbuffer1[STRBUFFER_SZ];
 SdFat sd(1);  // Sd Card with SPI configuration 1
 File myFile;  // The file object
 bool sdcard_ready = false;
+bool sdcard_inserted = false;
 
 // Gps settings ------------------------------------------------------------
 TinyGPS gps(true);
@@ -170,6 +180,7 @@ static void truncate_100m(char *latitude, char *longitude);
 // Nano Settings --------------------------------------------------------------
 static ConfigType config;
 static DoseType dose;
+bool config_read = false;
 NanoSetup nanoSetup(sd, config, dose, line, LINE_SZ);
 
 // ****************************************************************************
@@ -180,10 +191,6 @@ void setup()
 #ifdef GPS_LED_PIN
   pinMode(GPS_LED_PIN, OUTPUT);
 #endif
-#ifdef LOGALARM_LED_PIN
-  pinMode(LOGALARM_LED_PIN, OUTPUT);
-#endif
-  pinMode(GEIGIE_TYPE_PIN, INPUT);
 
   Serial.begin(9600);
 
@@ -195,31 +202,36 @@ void setup()
 
   nanoSetup.initialize();
 
-  // Initialize SdFat or print a detailed error message and halt
-  // Use half speed like the native library.
-  // Change to SPI_FULL_SPEED for more performance.
-  if (!sd.begin(CS_LOG, SPI_HALF_SPEED))
-    sdcard_ready = false;
-  else
-    sdcard_ready = true;
-
-  // If card is ready, load config
-  if (sdcard_ready) {
-    nanoSetup.loadFromFile("SAFECAST.TXT");
-  }
-
   // Create pulse counter
   interruptCounterSetup(IROVER, TIME_INTERVAL);
 
   // And now Start the Pulse Counter!
   interruptCounterReset();
 
+  // setup the rotary encoder (12 steps)
+  rotary_encoder_setup(ENC_A, ENC_B, 12);
+
   // The GPS is connected to Serial2
   Serial2.begin(9600);
 
+  // Initialize SdFat or print a detailed error message and halt
+  // Use half speed like the native library.
+  // Change to SPI_FULL_SPEED for more performance.
+  if (!sd.begin(CS_LOG, SPI_HALF_SPEED))
+    sdcard_ready = false;
+  else
+  {
+    sdcard_ready = true;
+    sdcard_inserted = true;  // seems to be the case since we can init
+  }
+
+  // If card is ready, (re)load config
+  if (sdcard_ready) {
+    nanoSetup.loadFromFile("SAFECAST.TXT");
+  }
+
   // initialize and program the GPS module
   gps_program_settings();
-
 
   // Read the dose from EEPROM
   EEPROM_readAnything(BMRDD_EEPROM_DOSE, dose);
@@ -316,19 +328,73 @@ void loop()
       ;
   }
 
+  Serial.print("Rot enc: ");
+  Serial.println(rotary_encoder_position());
+
+  // Now we read the encoder switch
+  float enc_sw_val = analogRead(ENC_SW);
+  if (enc_sw_val < 100) // 0V
+  {
+    // The switch has been pressed
+    // toggle state
+    Serial.println("Switch is pressed! Toggle menu");
+    if (display_state == DISPLAY_MENU)
+      display_state = DISPLAY_GEIGIE;
+    else if (display_state == DISPLAY_GEIGIE)
+      display_state = DISPLAY_MENU;
+  }
+  else if (1350 < enc_sw_val && enc_sw_val < 1450) // ~ 1.1V
+  {
+    // The SD card is not inserted!
+    // The switch is not pressed
+    Serial.println("SD card is missing!");
+
+    // Reset the sd card and logfile states
+    sdcard_inserted = false;
+    sdcard_ready = false;
+    logfile_ready = false;
+  }
+  else  // button not pressed, and SD card is in
+  {
+    // If the sd card has just been inserted, we need to initialize it
+    if (!sdcard_inserted)
+    {
+      Serial.println("Initialize the SD card.");
+
+      sdcard_inserted = true;  // change the flag
+
+      // Initialize SdFat or print a detailed error message and halt
+      // Use half speed like the native library.
+      // Change to SPI_FULL_SPEED for more performance.
+      if (!sd.begin(CS_LOG, SPI_HALF_SPEED))
+        sdcard_ready = false;
+      else
+        sdcard_ready = true;
+
+      // If card is ready, (re)load config
+      if (sdcard_ready) {
+        nanoSetup.loadFromFile("SAFECAST.TXT");
+      }
+    }
+  }
+
   bool gpsReady = false;
 
 #if ENABLE_GEIGIE_SWITCH
   // Check geigie mode switch
-  if (analogRead(GEIGIE_TYPE_PIN) < GEIGIE_TYPE_THRESHOLD) {
-    config.type = GEIGIE_TYPE_B; // XGeigie;
-  } else {
-    config.type = GEIGIE_TYPE_X; // BGeigie
+  if (rotary_encoder_position() % 2 == 0)
+    config.type = GEIGIE_TYPE_B;
+  else
+    config.type = GEIGIE_TYPE_X;
+  
 #ifdef LOGALARM_LED_PIN
+  if (config.type == GEIGIE_TYPE_X)
     digitalWrite(LOGALARM_LED_PIN, LOW);
+  else
+    digitalWrite(LOGALARM_LED_PIN, HIGH);
 #endif
-  }
 #endif
+
 
 #if ENABLE_GEIGIE_SWITCH
   //Switch to bGeigie Xmode on low battery
@@ -339,10 +405,6 @@ void loop()
     config.type = GEIGIE_TYPE_X; // BGeigie
   }
 #endif
-
-  // Put GPS serial in listen mode
-  // (2017 01 22 Robin: maybe not needed)
-  //Serial2.listen();
 
   // For GPS_INTERVAL we work on parsing GPS sentences
   for (unsigned long start = millis(); (elapsedTime(start) < GPS_INTERVAL) and !IS_READY;)
@@ -452,7 +514,7 @@ void loop()
       // Printout line
       Serial.println(line);
 
-      if ((logfile_ready) && (GEIGIE_TYPE_B == config.type || GEIGIE_TYPE_I == config.type))
+      if ((logfile_ready) && GEIGIE_TYPE_B == config.type)
       {
 
         // Open logfile and write the new record
@@ -646,6 +708,7 @@ void render_measurement(unsigned long value, bool is_cpm, int offset)
     }
   }
 }
+
 /* generate log result line */
 bool gps_gen_timestamp(TinyGPS &gps, char *buf, unsigned long counts, unsigned long cpm, unsigned long cpb)
 {
@@ -763,243 +826,258 @@ bool gps_gen_timestamp(TinyGPS &gps, char *buf, unsigned long counts, unsigned l
   display.clearDisplay();
   int offset = 0;
 
-  if (config.type == GEIGIE_TYPE_B) {
-    // **********************************************************************
-    // bGeigie mode
-    // **********************************************************************
-    // Display uptime
-    uphour = uptime/3600;
-    upminute = uptime/60 - uphour*60;
-    sprintf(strbuffer, ("%02dh%02dm"), uphour, upminute);
-    display.setCursor(91, offset+24);
+  if (display_state == DISPLAY_MENU)
+  {
+    display.setCursor(0, 0);
     display.setTextSize(1);
     display.setTextColor(WHITE);
-    display.println(strbuffer);
-
-	//Display Alarm LED if GPS is locked and Radiation is valid
-	#ifdef LOGALARM_LED_PIN
-	    if ((geiger_status == AVAILABLE) && (gps.status())){
-			if (sdcard_ready) {
-				  digitalWrite(LOGALARM_LED_PIN, HIGH);
-			} else { 
-			digitalWrite(LOGALARM_LED_PIN, LOW);
-			}          
-           } else {
-            digitalWrite(LOGALARM_LED_PIN, LOW);
-          }
-    #endif
-
-    // Display CPM (with deadtime compensation)
-    render_measurement(cpm, true, offset);
-    
-    // Display SD, GPS and Geiger states
-    display.setTextColor(WHITE);
-    display.setTextSize(1);
-    if (!gps.status()) {
-      display.setCursor(91, offset+8);
-      display.setTextColor(BLACK, WHITE); // 'inverted' text
-      sprintf(strbuffer, ("No GPS"));
-      display.println(strbuffer);
-    } else {
+    display.println("Menu");
+  }
+  else
+  {
+    if (config.type == GEIGIE_TYPE_B)
+    {
+      // **********************************************************************
+      // bGeigie mode
+      // **********************************************************************
+      // Display uptime
+      uphour = uptime/3600;
+      upminute = uptime/60 - uphour*60;
+      sprintf(strbuffer, ("%02dh%02dm"), uphour, upminute);
+      display.setCursor(91, offset+24);
+      display.setTextSize(1);
       display.setTextColor(WHITE);
-      display.setCursor(110, offset+8); 
-      sprintf(strbuffer,"%2d", nbsat);
-      display.print(strbuffer);
-      sprintf(strbuffer, ("^"));
       display.println(strbuffer);
-  
-    }
 
-    // Display uSv/h
-    display.setTextColor(WHITE);
-    display.setCursor(0, offset+16); // textsize*8
-    if (config.mode == GEIGIE_MODE_USVH) {
-      //dtostrf((float)(cpm/config.cpm_factor), 0, 3, strbuffer); // replace by sprintf
-      sprintf(strbuffer, "%0.3f", (float)(cpm/config.cpm_factor));
-      display.print(strbuffer);
-      sprintf(strbuffer, (" uSv/h"));
-      display.println(strbuffer);
+    //Display Alarm LED if GPS is locked and Radiation is valid
+    #ifdef LOGALARM_LED_PIN
+        if ((geiger_status == AVAILABLE) && (gps.status())){
+        if (sdcard_ready) {
+            digitalWrite(LOGALARM_LED_PIN, HIGH);
+        } else { 
+        digitalWrite(LOGALARM_LED_PIN, LOW);
+        }          
+             } else {
+              digitalWrite(LOGALARM_LED_PIN, LOW);
+            }
+      #endif
+
+      // Display CPM (with deadtime compensation)
+      render_measurement(cpm, true, offset);
+      
+      // Display SD, GPS and Geiger states
+      display.setTextColor(WHITE);
+      display.setTextSize(1);
+      if (!gps.status()) {
+        display.setCursor(91, offset+8);
+        display.setTextColor(BLACK, WHITE); // 'inverted' text
+        sprintf(strbuffer, ("No GPS"));
+        display.println(strbuffer);
+      } else {
+        display.setTextColor(WHITE);
+        display.setCursor(110, offset+8); 
+        sprintf(strbuffer,"%2d", nbsat);
+        display.print(strbuffer);
+        sprintf(strbuffer, ("^"));
+        display.println(strbuffer);
+    
+      }
+
+      // Display uSv/h
+      display.setTextColor(WHITE);
+      display.setCursor(0, offset+16); // textsize*8
+      if (config.mode == GEIGIE_MODE_USVH) {
+        //dtostrf((float)(cpm/config.cpm_factor), 0, 3, strbuffer); // replace by sprintf
+        sprintf(strbuffer, "%0.3f", (float)(cpm/config.cpm_factor));
+        display.print(strbuffer);
+        sprintf(strbuffer, (" uSv/h"));
+        display.println(strbuffer);
+      } 
+      else if (config.mode == GEIGIE_MODE_BQM2) {
+        //dtostrf((float)(cpm*config.bqm_factor), 0, 3, strbuffer); // replace by sprintf
+        sprintf(strbuffer, "%.3f", (float)(cpm*config.bqm_factor));
+        display.print(strbuffer);
+        sprintf(strbuffer, (" Bq/m2"));
+        display.println(strbuffer);
+      }
+
+      if (toggle) {
+        // Display distance
+        //dtostrf((float)(gps_distance/1000.0), 0, 1, strbuffer); // replace by sprintf
+        sprintf(strbuffer, "%.1f", (float)(gps_distance/1000.0));
+        display.setCursor(115-(strlen(strbuffer)*6), offset+16); // textsize*8
+        display.print(strbuffer);
+        sprintf(strbuffer, ("km"));
+        display.println(strbuffer);
+      } else {
+        // Display altidude
+        if (gps.status()) {
+          //dtostrf(faltitude, 0, 0, strbuffer); // replace by sprintf
+          sprintf(strbuffer, "%.0f", faltitude);
+        } else {
+          sprintf(strbuffer, ("--"));
+        }
+        display.setCursor(121-(strlen(strbuffer)*6), offset+16); // textsize*8
+        display.print(strbuffer);
+        display.println("m");
+      }
     } 
-    else if (config.mode == GEIGIE_MODE_BQM2) {
-      //dtostrf((float)(cpm*config.bqm_factor), 0, 3, strbuffer); // replace by sprintf
-      sprintf(strbuffer, "%.3f", (float)(cpm*config.bqm_factor));
+    else if (config.type == GEIGIE_TYPE_X)
+    {
+      // **********************************************************************
+      // xGeigie mode
+      // **********************************************************************
+      // LED Log/alarm set for alarm
+#ifdef LOGALARM_LED_PIN
+        digitalWrite(LOGALARM_LED_PIN, LOW);
+        if(cpm > config.alarm_level){
+        digitalWrite(LOGALARM_LED_PIN, HIGH);
+        } else {
+        digitalWrite(LOGALARM_LED_PIN, LOW);
+        }
+#endif
+        
+      // Display uSv/h
+      render_measurement(cpm, false, offset);
+    
+      // Cleanup temp buffer
+      memset(strbuffer1, 0, sizeof(strbuffer1));
+
+      display.setCursor(0, offset+16);
+      display.setTextSize(1);
+      display.setTextColor(WHITE);
+      if (toggle) {
+      int battery = ((read_voltage(VOLTAGE_PIN)-30));
+      if (battery < 1){
+       display.setTextColor(BLACK, WHITE); // 'inverted' text
+       display.print("BATTERY LOW.NO LOGGER");
+      } else {
+        // Display CPM
+        if (cpm > 1000) {
+          //dtostrf((float)(cpm/1000.00), 0, 1, strbuffer); // replace by sprintf
+          sprintf(strbuffer, "%.1f", (float)(cpm/1000.00));
+          strncpy (strbuffer1, strbuffer, 5);
+          if (strbuffer1[strlen(strbuffer1)-1] == '.') {
+          strbuffer1[strlen(strbuffer1)-1] = 0;
+          } 
+          display.print(strbuffer1);
+          sprintf(strbuffer, ("kCPM "));
+          display.print(strbuffer);
+        } else {
+          //dtostrf((float)cpm, 0, 0, strbuffer); // replace by sprintf
+          sprintf(strbuffer, "%.0f", (float)cpm);
+          display.print(strbuffer);
+          sprintf(strbuffer, ("CPM "));
+          display.print(strbuffer);
+        }
+
+        // Display bq/m2
+         if ((cpm*config.bqm_factor) >1000000) {
+          //dtostrf((float)(cpm*config.bqm_factor/1000000.0), 0, 1, strbuffer); // replace by sprintf
+          sprintf(strbuffer, "%.1f", (float)(cpm*config.bqm_factor/1000000.0));
+          strncpy (strbuffer1, strbuffer, 5);
+          display.print(strbuffer1);
+          sprintf(strbuffer, ("mBq/m2"));
+          display.print(strbuffer);
+        
+          }else{
+           if ((cpm*config.bqm_factor) >10000) {
+            //dtostrf((float)(cpm*config.bqm_factor/1000.0), 0, 0, strbuffer); // replace by sprintf
+            sprintf(strbuffer, "%.0f", (float)(cpm*config.bqm_factor/1000.0));
+            strncpy (strbuffer1, strbuffer, 5);
+            display.print(strbuffer1);
+            sprintf(strbuffer, ("kBq/m2"));
+            display.print(strbuffer);
+          }else{
+            //dtostrf((float)(cpm*config.bqm_factor), 0, 0, strbuffer); // replace by sprintf
+            sprintf(strbuffer, "%.0f", (float)(cpm*config.bqm_factor));
+            display.print(strbuffer);
+            sprintf(strbuffer, ("Bq/m2"));
+            display.print(strbuffer);
+          }
+        }
+        }	
+      } else {
+      int battery = ((read_voltage(VOLTAGE_PIN)-30));
+      if (battery < 1 ){
+      display.setTextColor(BLACK, WHITE); // 'inverted' text
+       display.print("BATTERY LOW.NO LOGGER");
+      } else {
+        // Total dose and max count
+        sprintf(strbuffer, ("Mx="));
+        display.print(strbuffer);
+        //dtostrf((float)(max_count/config.cpm_factor), 0, 1, strbuffer); // replace by sprintf
+        sprintf(strbuffer, "%.1f", (float)(max_count/config.cpm_factor));
+        display.print(strbuffer);
+        sprintf(strbuffer, ("uS/h "));
+        display.print(strbuffer);
+        sprintf(strbuffer, ("Ds="));
+        display.print(strbuffer);
+        //dtostrf((float)( ((dose.total_count/(dose.total_time/60.0))/config.cpm_factor) * (dose.total_time/3600.0) ), 0, 0, strbuffer); // replace by sprintf
+        sprintf(strbuffer, "%.0f", (float)( ((dose.total_count/(dose.total_time/60.0))/config.cpm_factor) * (dose.total_time/3600.0) ));
+        display.print(strbuffer);
+        sprintf(strbuffer, ("uS"));
+        display.print(strbuffer);
+      }
+       }
+    }
+    else
+    {
+      // Wrong mode
+      display.setCursor(0, offset);
+      display.setTextSize(2);
+      display.setTextColor(BLACK, WHITE); // 'inverted' text
+      sprintf(strbuffer, ("Wrong mode !"));
       display.print(strbuffer);
-      sprintf(strbuffer, (" Bq/m2"));
-      display.println(strbuffer);
     }
 
-    if (toggle) {
-      // Display distance
-      //dtostrf((float)(gps_distance/1000.0), 0, 1, strbuffer); // replace by sprintf
-      sprintf(strbuffer, "%.1f", (float)(gps_distance/1000.0));
-      display.setCursor(115-(strlen(strbuffer)*6), offset+16); // textsize*8
-      display.print(strbuffer);
-      sprintf(strbuffer, ("km"));
+    // **********************************************************************
+    // Common display parts
+    // **********************************************************************
+    if (sdcard_ready) {
+      // Display date
+      sprintf(strbuffer, ("%02d/%02d %02d:%02d:%02d"),  \
+          day, month, \
+          hour, minute, second);
+      display.setCursor(0, offset+24); // textsize*8
+      display.setTextSize(1);
+      display.setTextColor(WHITE);
       display.println(strbuffer);
     } else {
-      // Display altidude
-      if (gps.status()) {
-        //dtostrf(faltitude, 0, 0, strbuffer); // replace by sprintf
-        sprintf(strbuffer, "%.0f", faltitude);
-      } else {
-        sprintf(strbuffer, ("--"));
-      }
-      display.setCursor(121-(strlen(strbuffer)*6), offset+16); // textsize*8
+      display.setCursor(0, offset+24); // textsize*8
+      display.setTextSize(1);
+      display.setTextColor(BLACK, WHITE); // 'inverted' text
+      sprintf(strbuffer, ("NO SD CARD/ GPS reset"));
       display.print(strbuffer);
-      display.println("m");
-    }
-  } 
-  else if (config.type == GEIGIE_TYPE_X) {
-    // **********************************************************************
-    // xGeigie mode
-    // **********************************************************************
-    // LED Log/alarm set for alarm
+
+      //reset GPS
+
 #ifdef LOGALARM_LED_PIN
-    	digitalWrite(LOGALARM_LED_PIN, LOW);
-    	if(cpm > config.alarm_level){
-    	digitalWrite(LOGALARM_LED_PIN, HIGH);
-    	} else {
-    	digitalWrite(LOGALARM_LED_PIN, LOW);
-    	}
+      digitalWrite(LOGALARM_LED_PIN, LOW);
 #endif
-    	
-    // Display uSv/h
-    render_measurement(cpm, false, offset);
-	
-    // Cleanup temp buffer
-    memset(strbuffer1, 0, sizeof(strbuffer1));
 
-    display.setCursor(0, offset+16);
-    display.setTextSize(1);
-    display.setTextColor(WHITE);
-		if (toggle) {
-		int battery = ((read_voltage(VOLTAGE_PIN)-30));
-		if (battery < 1){
-		 display.setTextColor(BLACK, WHITE); // 'inverted' text
-		 display.print("BATTERY LOW.NO LOGGER");
-		} else {
-		  // Display CPM
-		  if (cpm > 1000) {
-			  //dtostrf((float)(cpm/1000.00), 0, 1, strbuffer); // replace by sprintf
-			  sprintf(strbuffer, "%.1f", (float)(cpm/1000.00));
-			  strncpy (strbuffer1, strbuffer, 5);
-			  if (strbuffer1[strlen(strbuffer1)-1] == '.') {
-			  strbuffer1[strlen(strbuffer1)-1] = 0;
-			  } 
-			  display.print(strbuffer1);
-			  sprintf(strbuffer, ("kCPM "));
-			  display.print(strbuffer);
-			} else {
-			  //dtostrf((float)cpm, 0, 0, strbuffer); // replace by sprintf
-			  sprintf(strbuffer, "%.0f", (float)cpm);
-			  display.print(strbuffer);
-			  sprintf(strbuffer, ("CPM "));
-			  display.print(strbuffer);
-			}
+      memset(line, 0, LINE_SZ);
+      sprintf(line, (PMTK_COLD_START));
+      Serial2.println(line);
+    }
 
-		  // Display bq/m2
-		   if ((cpm*config.bqm_factor) >1000000) {
-				//dtostrf((float)(cpm*config.bqm_factor/1000000.0), 0, 1, strbuffer); // replace by sprintf
-				sprintf(strbuffer, "%.1f", (float)(cpm*config.bqm_factor/1000000.0));
-				strncpy (strbuffer1, strbuffer, 5);
-				display.print(strbuffer1);
-				sprintf(strbuffer, ("mBq/m2"));
-				display.print(strbuffer);
-		  
-			  }else{
-			   if ((cpm*config.bqm_factor) >10000) {
-					//dtostrf((float)(cpm*config.bqm_factor/1000.0), 0, 0, strbuffer); // replace by sprintf
-					sprintf(strbuffer, "%.0f", (float)(cpm*config.bqm_factor/1000.0));
-					strncpy (strbuffer1, strbuffer, 5);
-					display.print(strbuffer1);
-					sprintf(strbuffer, ("kBq/m2"));
-					display.print(strbuffer);
-				}else{
-				  //dtostrf((float)(cpm*config.bqm_factor), 0, 0, strbuffer); // replace by sprintf
-				  sprintf(strbuffer, "%.0f", (float)(cpm*config.bqm_factor));
-				  display.print(strbuffer);
-				  sprintf(strbuffer, ("Bq/m2"));
-				  display.print(strbuffer);
-				}
-			}
-		  }	
-		} else {
-		int battery = ((read_voltage(VOLTAGE_PIN)-30));
-		if (battery < 1 ){
-		display.setTextColor(BLACK, WHITE); // 'inverted' text
-		 display.print("BATTERY LOW.NO LOGGER");
-		} else {
-		  // Total dose and max count
-		  sprintf(strbuffer, ("Mx="));
-		  display.print(strbuffer);
-		  //dtostrf((float)(max_count/config.cpm_factor), 0, 1, strbuffer); // replace by sprintf
-		  sprintf(strbuffer, "%.1f", (float)(max_count/config.cpm_factor));
-		  display.print(strbuffer);
-		  sprintf(strbuffer, ("uS/h "));
-		  display.print(strbuffer);
-		  sprintf(strbuffer, ("Ds="));
-		  display.print(strbuffer);
-		  //dtostrf((float)( ((dose.total_count/(dose.total_time/60.0))/config.cpm_factor) * (dose.total_time/3600.0) ), 0, 0, strbuffer); // replace by sprintf
-		  sprintf(strbuffer, "%.0f", (float)( ((dose.total_count/(dose.total_time/60.0))/config.cpm_factor) * (dose.total_time/3600.0) ));
-		  display.print(strbuffer);
-		  sprintf(strbuffer, ("uS"));
-		  display.print(strbuffer);
-		}
-     }
-  } else {
-    // Wrong mode
-    display.setCursor(0, offset);
-    display.setTextSize(2);
-    display.setTextColor(BLACK, WHITE); // 'inverted' text
-    sprintf(strbuffer, ("Wrong mode !"));
-    display.print(strbuffer);
+
+    // Display battery indicator
+    // Range = [3.5v to 4.3v]
+    int battery =((read_voltage(VOLTAGE_PIN)-30));
+    if (battery < 0) battery = 0;	
+    if (battery > 8) battery = 8;
+
+    if (config.type == GEIGIE_TYPE_X){
+      display.drawRect(115, offset+24, 12, 7, WHITE);
+      display.fillRect(117, offset+26, battery, 3, WHITE);
+    } else {
+      display.drawRect(115, offset+0, 12, 7, WHITE);
+      display.fillRect(117, offset+2, battery, 3, WHITE);
+    }
   }
 
-
-  // **********************************************************************
-  // Common display parts
-  // **********************************************************************
-   if (sdcard_ready) {
-     // Display date
-		  sprintf(strbuffer, ("%02d/%02d %02d:%02d:%02d"),  \
-				day, month, \
-				hour, minute, second);
-		  display.setCursor(0, offset+24); // textsize*8
-		  display.setTextSize(1);
-		  display.setTextColor(WHITE);
-		  display.println(strbuffer);
-    } else {
-    	  display.setCursor(0, offset+24); // textsize*8
-		  display.setTextSize(1);
-		  display.setTextColor(BLACK, WHITE); // 'inverted' text
-          sprintf(strbuffer, ("NO SD CARD/ GPS reset"));
-		  display.print(strbuffer);
-		  
-		  //reset GPS
-
-#ifdef LOGALARM_LED_PIN
-			digitalWrite(LOGALARM_LED_PIN, LOW);
-#endif
-
-			memset(line, 0, LINE_SZ);
-			sprintf(line, (PMTK_COLD_START));
-			Serial2.println(line);
-    }
-
-
-  // Display battery indicator
-  // Range = [3.5v to 4.3v]
-  int battery =((read_voltage(VOLTAGE_PIN)-30));
-  if (battery < 0) battery = 0;	
-  if (battery > 8) battery = 8;
-  
-if (config.type == GEIGIE_TYPE_X){
-display.drawRect(115, offset+24, 12, 7, WHITE);
-display.fillRect(117, offset+26, battery, 3, WHITE);
- } else {
-  display.drawRect(115, offset+0, 12, 7, WHITE);
-display.fillRect(117, offset+2, battery, 3, WHITE);
-}
+  // Update the display
   display.display();
 #endif
 
