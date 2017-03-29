@@ -46,6 +46,7 @@ void interruptCounterSetup(int interrupt_pin, unsigned long delay)
   _interrupt_pin = interrupt_pin;
   _delay = delay;
   _count = 0;
+  pinMode(_interrupt_pin, INPUT);
   attachInterrupt(_interrupt_pin, interrupt_routine, RISING);
 }
 
