@@ -248,7 +248,8 @@ void setup()
 
 #if ENABLE_SSD1306
   delay(1000);
-  display.begin(SSD1306_SWITCHCAPVCC, 0x3D);
+  //display.begin(SSD1306_SWITCHCAPVCC, 0x3C);  // Rob's display
+  display.begin(SSD1306_SWITCHCAPVCC, 0x3D);  // Robin's display
   // show splashscreen logo
   display.display();
   
@@ -268,8 +269,7 @@ void setup()
   display.print(strbuffer);
   
   display.setCursor(8, 8);
-  int battery =((read_voltage(VOLTAGE_PIN)-30)*12.5);
-  battery=(battery+20);
+  int battery =((read_voltage(VOLTAGE_PIN)-35)*12.5);
     if (battery < 0) battery=1;
     if (battery > 100) battery=100;
   sprintf(strbuffer, ("Battery= %02d"), battery); 
@@ -346,7 +346,7 @@ void loop()
     // The switch is not pressed
     Serial.println("SD card is missing!");
 
-    // Reset the sd card and logfile states
+    // // Reset the sd card and logfile states
     sdcard_inserted = false;
     sdcard_ready = false;
     logfile_ready = false;
@@ -395,7 +395,7 @@ void loop()
 
 #if ENABLE_GEIGIE_SWITCH
   //Switch to bGeigie Xmode on low battery
-  int battery = ((read_voltage(VOLTAGE_PIN)-30));
+  int battery = ((read_voltage(VOLTAGE_PIN)-35));
   if (battery < 1)
   {
     delay(1000);
@@ -944,7 +944,7 @@ bool gps_gen_timestamp(TinyGPS &gps, char *buf, unsigned long counts, unsigned l
       display.setTextSize(1);
       display.setTextColor(WHITE);
       if (toggle) {
-      int battery = ((read_voltage(VOLTAGE_PIN)-30));
+      int battery = ((read_voltage(VOLTAGE_PIN)-35));
       if (battery < 1){
        display.setTextColor(BLACK, WHITE); // 'inverted' text
        display.print("BATTERY LOW.NO LOGGER");
@@ -995,7 +995,7 @@ bool gps_gen_timestamp(TinyGPS &gps, char *buf, unsigned long counts, unsigned l
         }
         }	
       } else {
-      int battery = ((read_voltage(VOLTAGE_PIN)-30));
+      int battery = ((read_voltage(VOLTAGE_PIN)-35));
       if (battery < 1 ){
       display.setTextColor(BLACK, WHITE); // 'inverted' text
        display.print("BATTERY LOW.NO LOGGER");
@@ -1040,12 +1040,20 @@ bool gps_gen_timestamp(TinyGPS &gps, char *buf, unsigned long counts, unsigned l
       display.setTextSize(1);
       display.setTextColor(WHITE);
       display.println(strbuffer);
+      display.setCursor(0, offset+32); // textsize*8
+      float vbattery =(read_voltage(VOLTAGE_PIN));
+      display.print(vbattery/10);
+      display.println("Volt");
+      
     } else {
       display.setCursor(0, offset+24); // textsize*8
       display.setTextSize(1);
       display.setTextColor(BLACK, WHITE); // 'inverted' text
       sprintf(strbuffer, ("NO SD CARD/ GPS reset"));
       display.print(strbuffer);
+      display.setCursor(0, offset+32); // textsize*8
+      float vbattery =(read_voltage(VOLTAGE_PIN));
+      display.println(vbattery);
 
       //reset GPS
 
@@ -1061,7 +1069,7 @@ bool gps_gen_timestamp(TinyGPS &gps, char *buf, unsigned long counts, unsigned l
 
     // Display battery indicator
     // Range = [3.5v to 4.3v]
-    int battery =((read_voltage(VOLTAGE_PIN)-30));
+    int battery =((read_voltage(VOLTAGE_PIN)-35));
     if (battery < 0) battery = 0;	
     if (battery > 8) battery = 8;
 
@@ -1154,8 +1162,7 @@ void gps_send_message(const uint8_t *msg, uint16_t len)
 float read_voltage(int pin)
 {
   static float voltage_divider = (float)VOLTAGE_R2 / (VOLTAGE_R1 + VOLTAGE_R2);
-  float result = (float)analogRead(pin)/4096 * 33 / voltage_divider;
-  
+  float result = (float)analogRead(pin)/4096*33/ voltage_divider;
   return result;
 }
 

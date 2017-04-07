@@ -55,7 +55,7 @@
 #define TX_GPS D9
 #define IROVER D10
 #define ENC_SW D11
-#define BAT_MEASURE D12
+#define BAT_MEASURE A4
 #define PWR_OFF D13
 #define ENC_A D14
 #define ENC_B D15
