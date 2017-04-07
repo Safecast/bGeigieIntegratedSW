@@ -328,9 +328,6 @@ void loop()
       ;
   }
 
-  Serial.print("Rot enc: ");
-  Serial.println(rotary_encoder_position());
-
   // Now we read the encoder switch
   float enc_sw_val = analogRead(ENC_SW);
   if (enc_sw_val < 100) // 0V
