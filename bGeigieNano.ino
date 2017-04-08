@@ -52,6 +52,8 @@ SYSTEM_MODE(MANUAL);//do not connect to cloud
 
 #include "InterruptCounter.h"
 
+#include "ble_serial.h"
+
 // For some reason (ask Musti) ARDUINO
 // must be undef before loading SdFat library
 // (2017 01 22 Robin: test works without these two lines. commenting out)
@@ -199,6 +201,8 @@ void setup()
   wdt_enable(WDTO_8S);
   wdt_reset();
 #endif
+
+  ble_setup();
 
   nanoSetup.initialize();
 
@@ -510,6 +514,7 @@ void loop()
 
       // Printout line
       Serial.println(line);
+      ble_send(line);
 
       if ((logfile_ready) && GEIGIE_TYPE_B == config.type)
       {
