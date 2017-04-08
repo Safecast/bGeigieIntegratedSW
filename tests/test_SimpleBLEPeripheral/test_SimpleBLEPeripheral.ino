@@ -30,6 +30,7 @@
 SYSTEM_MODE(SEMI_AUTOMATIC); 
 #endif
 
+#include <stdlib.h>
 #include <string.h>
 
 /* 
@@ -238,7 +239,8 @@ int gattWriteCallback(uint16_t value_handle, uint8_t *buffer, uint16_t size) {
   return 0;
 }
 
-char dummy_log[] = "$BNRDD,300,2012-12-16T17:58:31Z,30,1,116,A,4618.9612,N,00658.4831,E,443.7,A,5,1.28*6D\r\n";
+char dummy_log[] = "$BNRDD,300,2012-12-16T17:58:31Z,%d,1,116,A,4618.9612,N,00658.4831,E,443.7,A,5,1.28*6D\r\n";
+char strbuffer[128];
 
 /**
  * @brief Setup.
@@ -296,12 +298,17 @@ void setup() {
  */
 void loop() {
 
-  int len = strlen(dummy_log);
+  // fake cpm count
+  int count = 10 + (int)(rand() % 20);
+  sprintf(strbuffer, dummy_log, count);
+
+  // Emulate serial over BLE
+  int len = strlen(strbuffer);
   int buff_count = 0;
   int str_count = 0;
   while (str_count < len)
   {
-    char c = dummy_log[str_count];
+    char c = strbuffer[str_count];
 
     characteristic1_data[buff_count] = c;
 
@@ -319,7 +326,7 @@ void loop() {
     if (c == '\n')
       break;
   }
-  Serial.println(dummy_log);
+  Serial.println(strbuffer);
   delay(5000);
 
 }
