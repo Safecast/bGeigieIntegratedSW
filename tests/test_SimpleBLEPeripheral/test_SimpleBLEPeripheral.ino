@@ -125,7 +125,7 @@ static uint8_t adv_data[] = {
   BLE_GAP_AD_TYPE_FLAGS,
   BLE_GAP_ADV_FLAGS_LE_ONLY_GENERAL_DISC_MODE,   
   
-  0x17,
+  0x11,
   BLE_GAP_AD_TYPE_128BIT_SERVICE_UUID_COMPLETE,
   0x7f, 0x5d, 0x79, 0xf4, 0xa5, 0x05, 0x3f, 0xbd, 0xff, 0x41, 0xbe, 0xc3, 0x8c, 0x0d, 0x08, 0xef
 };
@@ -244,7 +244,7 @@ char dummy_log[] = "$BNRDD,300,2012-12-16T17:58:31Z,30,1,116,A,4618.9612,N,00658
  * @brief Setup.
  */
 void setup() {
-  Serial.begin(115200);
+  Serial.begin(9600);
   delay(5000);
   Serial.println("BLE peripheral demo.");
     
@@ -259,8 +259,8 @@ void setup() {
   // Register BLE callback functions.
   ble.onConnectedCallback(deviceConnectedCallback);
   ble.onDisconnectedCallback(deviceDisconnectedCallback);
-  ble.onDataReadCallback(gattReadCallback);
-  ble.onDataWriteCallback(gattWriteCallback);
+  //ble.onDataReadCallback(gattReadCallback);
+  //ble.onDataWriteCallback(gattWriteCallback);
 
   // Add GAP service and characteristics
   ble.addService(BLE_UUID_GAP);
@@ -275,7 +275,8 @@ void setup() {
   // Add primary service1.
   ble.addService(service1_uuid);
   // Add characteristic to service1, return value handle of characteristic.
-  character1_handle = ble.addCharacteristicDynamic(char1_uuid, ATT_PROPERTY_NOTIFY|ATT_PROPERTY_WRITE_WITHOUT_RESPONSE, characteristic1_data, CHARACTERISTIC1_MAX_LEN);
+  //character1_handle = ble.addCharacteristicDynamic(char1_uuid, ATT_PROPERTY_NOTIFY|ATT_PROPERTY_WRITE_WITHOUT_RESPONSE, characteristic1_data, CHARACTERISTIC1_MAX_LEN);
+  character1_handle = ble.addCharacteristicDynamic(char1_uuid, ATT_PROPERTY_NOTIFY, characteristic1_data, CHARACTERISTIC1_MAX_LEN);
   
   // Set BLE advertising parameters
   ble.setAdvertisementParams(&adv_params);
@@ -318,6 +319,7 @@ void loop() {
     if (c == '\n')
       break;
   }
+  Serial.println(dummy_log);
   delay(5000);
 
 }
