@@ -1,10 +1,19 @@
-# Welcome to bGeigie Nano Kit project  
+# Welcome to bGeigie Nano Integrated Version project  
 (this file in in process of updating)
+
+**This repository contains the firmware for the new integrated hardware for the bGeigie Nano developed at IRNAS.**
+
+The major difference with a regular bGeigie Nano is that the device is centered
+around the [RedBear Duo](https://github.com/redbear/Duo) board that has an ARM
+architecture.
+For the regular bGeigie Nano based on Arduino, head out [here](https://github.com/Safecast/bGeigieNanoKit).
 
 This is a lighter version of the bGeigie Mini which is meant to fit in a Pelican Micro Case 1010.
 
 # Acknowledgements
 This work would not exist without the original development by [bidouilles] (https://github.com/bidouilles/bGeigieNano) and contributions of other [safecast] (https://github.com/Safecast/bGeigieNano) developers.
+
+The bGeigie Nano code for the atmega328p was ported to the RedBear Duo by @fakufaku and @robouden.
 
 # Requirements
 * bGeigieNanoKit can be bought online from [Mecom](http://www.nanoxpress.com/)
@@ -14,31 +23,41 @@ This work would not exist without the original development by [bidouilles] (http
 
 
 # Build process 
-(Needs compiler for example Crosspack-AVR on Mac)
-http://www.ladyada.net/learn/avr/setup-mac.html
+
+## Using Arduino IDE
+
+After everything is installed in the Arduino IDE:
+
+1. go to `Tools -> Board -> Boards Manager`
+2. scroll to RedBear Duo pack
+3. Click once so that the button appears
+4. Then from dropdown menu on the right select version `2.10.0`
+5. press update
+6. Wait for the update to finish. (edited)
+
+The it is time to get the bGeigieIntegrated code.
+
+From the terminal:
+
+    git clone https://github.com/fakufaku/bGeigieNanoKit.git bGeigieNano
+    cd bGeigieNano
+    git checkout RedBearDuo_dev
+
+From the arduino IDE:
+
+* Open `bGeigieNano/bGeigieNano.ino`
+* Connect the redbear duo board from the bGeigie to the computer via usb
+* From `Tools -> Board` select `RedBear Duo (native USB port)`
+* From `Tools -> Serial Port` Select the correct serial port
+* Click the compile and upload button (on the sketch window, the right pointing arrow)
 
 ## Using the Makefile
-    export ARDUINODIR=/home/geigie/arduino-1.0.1/
-    export SERIALDEV=/dev/ttyUSB0
-    export BOARD=fio
-    cp -r libraries /home/geigie/arduino-1.0.1/
-    make
-    make upload
+
+TBA
 
 ## Using the prebuilt image
-You can use directly the prebuilt image to flash the Arduino Fio. Here is an example with Arduino Fio connected to ttyUSB0:
 
-    /usr/bin/avrdude -DV -p atmega328p -P /dev/ttyUSB0 -c arduino -b 57600 -U flash:w:bGeigieNano.hex:i
-    
-Or Windows Users can download a small program called Xloader (http://russemotto.com/xloader/) and can directly flash a HEX file to the bGiegieNano (assuming you have a FDTI connection. Can be bought at many places like Adafruit, Seeedstudio, Switch-science etc.
-Download and installed X-loader. Do not use the USB charging port on the Nano, but the 6 pin FTDI connector on the edge of the CPU board.
-Purchase a   https://www.sparkfun.com/products/9873      FTDI breakout adapter.
- 
-When you plug this little FTDI breakout board onto the 6 pin header and then plug in via a usb cable into your computer, the Nano will power up by itself (even though the power switch is off).  Be careful here as you can plug it in upside down, so match the pins on the FTDI board with the pins on the cpu module.
- 
-Monitor the device manager com ports to see the device appear and what com # Windows assigned to the device.
- 
-Then Run X-loader, select com port, browse to HEX file, and I selected in the drop down Duemilanove/nano(ATmega328) device.  Leave the baud rate at 57600 and hit upload.   When it is done, the Nano rebooted/restarted all by itself and is running the new code.     Remove the FTDI board and usb cable to computer, and the Nano will power off. 
+TBA
 
 # Assembly
 
@@ -46,22 +65,15 @@ Then Run X-loader, select com port, browse to HEX file, and I selected in the dr
 
 # Power consumption
 
-* **Fio**: 0.045mA sleep, 6mA at run time
-* **OpenLog**: 2mA idle, 6mA at maximum recording rate
-* **Adafruit Ultimate GPS**: 25mA acquisition, 20mA tracking
-* **Monochrome OLED 128x32 0.91"**: 4mA 50% turn-on, 7.8mA 100% turn-on
+TBA
 
 ## Estimation
-The total current used at run time can be estimated around 36mA (= 6+6+20+4) per second which will result in a consumption of 0.01mAh (= 36mA/3600). So
-the total log duration if using a battery of 1300mAh will be (1300/.01)/3600 = 36.11 = **36h06m**
+
+TBA
 
 ## Summary table
 
-| Battery capacity (mAh) | Estimated log duration (days hh:mm) |
-| :-----------: | :-----------: |
-| 1300 | 1d 12:06 |
-| 2600 |  3d 00:13 |
-| 6600 |  7d 15:19 |
+TBA
 
 # Usage
 Once powered on the bGeigieNano will initiliaze a new log file on the SD card, setup the GPS and start counting the CPM.
@@ -95,18 +107,8 @@ Once powered on the bGeigieNano will initiliaze a new log file on the SD card, s
     $BNRDD,204,2012-09-20T16:55:48Z,765,70,35313,A,5651.0904,N,1435.2737,E,9869.50,A,106,9*4B
 
 # Notes
-## OpenLog config
 
-The OpenLog should start listening at 9600bps and in Command mode. Here is the content of the CONFIG.TXT file you have to create on the microSD card:
-
-    9600,26,3,2
-
-## SoftwareSerial update
-
-To make sure all of the NMEA sentences can be received correctly, we will need to update the _SS_MAX_RX_BUFF definition from arduino-1.0.1/libraries/SoftwareSerial/SoftwareSerial.h header file. Here is the modification:
-
-    //#define _SS_MAX_RX_BUFF 64 // RX buffer size -- Old Value is 64
-    #define _SS_MAX_RX_BUFF 128 // RX buffer size for TinyGPS
+Nothing here yet.
 
 # Licenses
  * [InterruptHandler and bGeigieMini code][5] - Copyright (c) 2011, Robin Scheibler aka FakuFaku
