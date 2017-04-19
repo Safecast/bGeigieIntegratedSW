@@ -1,7 +1,7 @@
 # Welcome to bGeigie Nano Integrated Version project  
 (this file in in process of updating)
 
-**This repository contains the firmware for the new integrated hardware for the bGeigie Nano developed at IRNAS.**
+**This repository contains the firmware for the new [integrated hardware for the bGeigie Nano developed at IRNAS](https://github.com/IRNAS/bGeigieIntegrated).**
 
 The major difference with a regular bGeigie Nano is that the device is centered
 around the [RedBear Duo](https://github.com/redbear/Duo) board that has an ARM
