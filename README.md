@@ -26,6 +26,9 @@ The bGeigie Nano code for the atmega328p was ported to the RedBear Duo by @fakuf
 
 ## Using Arduino IDE
 
+First, you need to install the readbear duo tools with Arduino IDE by following these
+[instructions](https://github.com/redbear/Duo/blob/master/docs/getting_started_with_arduino_ide.md).
+
 After everything is installed in the Arduino IDE:
 
 1. go to `Tools -> Board -> Boards Manager`
@@ -37,11 +40,9 @@ After everything is installed in the Arduino IDE:
 
 The it is time to get the bGeigieIntegrated code.
 
-From the terminal:
+From the terminal (the folder needs to have the same name as the arduino sketch due to Arduino IDE limitations):
 
-    git clone https://github.com/fakufaku/bGeigieNanoKit.git bGeigieNano
-    cd bGeigieNano
-    git checkout RedBearDuo_dev
+    git clone https://github.com/Safecast/bGeigieIntegratedSW bGeigieNano
 
 From the arduino IDE:
 
