@@ -119,7 +119,8 @@ static advParams_t adv_params = {
 static uint8_t adv_data[] = {
   0x02,
   BLE_GAP_AD_TYPE_FLAGS,
-  BLE_GAP_ADV_FLAGS_LE_ONLY_GENERAL_DISC_MODE,   
+  //BLE_GAP_ADV_FLAG_LE_GENERAL_DISC_MODE,
+  BLE_GAP_ADV_FLAGS_LE_ONLY_GENERAL_DISC_MODE,
   
   0x11,
   BLE_GAP_AD_TYPE_128BIT_SERVICE_UUID_COMPLETE,
@@ -240,7 +241,7 @@ void ble_send(char *strbuffer) {
 
       if (c == '\n' || buff_count == CHARACTERISTIC1_MAX_LEN)
       {
-        ble.sendNotify(character1_handle, characteristic1_data, CHARACTERISTIC1_MAX_LEN);
+        ble.sendNotify(character1_handle, characteristic1_data, buff_count);
         for (int i = 0 ; i < CHARACTERISTIC1_MAX_LEN ; i++)
           characteristic1_data[i] = 0x00;
         buff_count = 0;
