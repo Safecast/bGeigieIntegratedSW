@@ -25,5 +25,6 @@ gps_info_t;
 
 void gpsThreadSetup(TinyGPS *gps, gps_info_t *gps_info);
 bool gpsIsReady();
+void gpsInfoUpdate();
 
 #endif

@@ -149,18 +149,6 @@ char strGPRMC[] = "$GPRMC,201547.000,A,3014.5527,N,09749.5808,W,0.24,163.05,0401
 char strGPGGA[] = "$GPGGA,201548.000,3014.5529,N,09749.5808,W,1,07,1.5,225.6,M,-22.5,M,18.8,0000*78";
 char *teststrs[2] = {strGPRMC, strGPGGA};
 
-static void sendstring(TinyGPS &gps, const PROGMEM char *str)
-{
-  while (true)
-  {
-    char c = pgm_read_byte_near(str++);
-    if (!c) break;
-    gps.encode(c);
-  }
-  gps.encode('\r');
-  gps.encode('\n');
-}
-
 // Function definitions ---------------------------------------------------------
 // Atmel Tips and Tricks: 3.6 Tip #6 – Access types: Static
 static unsigned long cpm_gen();
@@ -692,6 +680,8 @@ bool gps_gen_timestamp(TinyGPS &gps, char *buf, unsigned long counts, unsigned l
   memset(lat, 0, BUFFER_SZ);
   memset(lon, 0, BUFFER_SZ);
   memset(strbuffer, 0, STRBUFFER_SZ);
+
+  gpsInfoUpdate();
 
   get_coordinate_string(true, gps_info.x == TinyGPS::GPS_INVALID_ANGLE ? 0 : gps_info.x, lat);
   get_coordinate_string(false, gps_info.y == TinyGPS::GPS_INVALID_ANGLE ? 0 : gps_info.y, lon);
