@@ -80,9 +80,6 @@ DisplayState display_state = DISPLAY_GEIGIE;
 #endif
 
 // For distance computation
-bool gps_fix_first = true;
-float gps_last_lon = 0, gps_last_lat = 0;
-unsigned long int gps_distance = 0;
 #endif
 
 // Geiger settings ------------------------------------------------------------
@@ -132,7 +129,7 @@ bool sdcard_inserted = false;
 // Gps settings ------------------------------------------------------------
 TinyGPS gps(true);
 #define GPS_INTERVAL 1000
-char gps_status = VOID;
+gps_info_t gps_info;
 
 // Gps data buffers
 static char lat[BUFFER_SZ];
@@ -252,7 +249,7 @@ void setup()
   pinMode(PWR_OFF, INPUT);  // sense power switch state
 
   // Start the GPS Thread
-  gpsThreadSetup(&gps);
+  gpsThreadSetup(&gps, &gps_info);
 
 #if ENABLE_SSD1306
   delay(1000);
@@ -426,14 +423,14 @@ void loop()
 
       // update the total counter
       total_count += cpb;
-      uptime += 5;
+      uptime += TIME_INTERVAL / 1000;
 
       // update max cpm
       if (cpm > max_count) max_count = cpm;
 
 #if ENABLE_EEPROM_DOSE
       dose.total_count += cpb;
-      dose.total_time += 5;
+      dose.total_time += TIME_INTERVAL / 1000;
       if (dose.total_time % BMRDD_EEPROM_DOSE_WRITETIME == 0) {
          EEPROM_writeAnything(BMRDD_EEPROM_DOSE, dose);
       }
@@ -451,7 +448,7 @@ void loop()
       }
 
 #if ENABLE_WAIT_GPS_FOR_LOG
-      if ((!logfile_ready) && (gps_status == AVAILABLE))
+      if ((!logfile_ready) && (gps_info.gps_status == GPS_AVAILABLE))
 #else
       if (!logfile_ready)
 #endif
@@ -617,15 +614,6 @@ void get_coordinate_string(bool is_latitude, unsigned long val, char *buf)
   }
 }
 
-/* convert long integer from TinyGPS to float WGS84 degrees */
-float get_wgs84_coordinate(unsigned long val)
-{
-  double result = 0.0;
-  result = val/10000000.0;
-  result = ((result-(int)result)/60.0)*100 + (int)result;
-  return (float)result;
-}
-
 /* render measurement in big digit on display */
 void render_measurement(unsigned long value, bool is_cpm, int offset)
 {
@@ -698,46 +686,16 @@ void render_measurement(unsigned long value, bool is_cpm, int offset)
 /* generate log result line */
 bool gps_gen_timestamp(TinyGPS &gps, char *buf, unsigned long counts, unsigned long cpm, unsigned long cpb)
 {
-  int year = DEFAULT_YEAR;
-  byte month = 0, day = 0, hour = 0, minute = 0, second = 0, hundredths = 0;
-  long int x = 0, y = 0;
-  float faltitude = 0, fspeed = 0;
-  unsigned short nbsat = 0;
-  unsigned long precission = 0;
-  unsigned long age;
   byte len, chk;
-  char NS = 'N';
-  char WE = 'E';
   static int toggle = 0;
 
   memset(lat, 0, BUFFER_SZ);
   memset(lon, 0, BUFFER_SZ);
   memset(strbuffer, 0, STRBUFFER_SZ);
 
-  // get GPS date
-  gps.crack_datetime(&year, &month, &day, &hour, &minute, &second, &hundredths, &age);
-  if (TinyGPS::GPS_INVALID_AGE == age) {
-    year = 2012, month = 0, day = 0, hour = 0, minute = 0, second = 0, hundredths = 0;
-  }
-
-  // get GPS position, altitude and speed
-  gps.get_position(&x, &y, &age);
-  if (!gps.status()) {
-    gps_status = VOID;
-  } else {
-    gps_status = AVAILABLE;
-  }
-  faltitude = gps.f_altitude();
-  fspeed = gps.f_speed_kmph();
-  nbsat = gps.satellites();
-  precission = gps.hdop();
-
-  if (x < 0) { NS = 'S'; x = -x;}
-  if (y < 0) { WE = 'W'; y = -y;}
-  get_coordinate_string(true, x == TinyGPS::GPS_INVALID_ANGLE ? 0 : x, lat);
-  get_coordinate_string(false, y == TinyGPS::GPS_INVALID_ANGLE ? 0 : y, lon);
-  //dtostrf(faltitude == TinyGPS::GPS_INVALID_F_ALTITUDE ? 0.0 : faltitude, 0, 2, strbuffer); // replace by sprintf
-  sprintf(strbuffer, "%.2f", faltitude == TinyGPS::GPS_INVALID_F_ALTITUDE ? 0.0 : faltitude);
+  get_coordinate_string(true, gps_info.x == TinyGPS::GPS_INVALID_ANGLE ? 0 : gps_info.x, lat);
+  get_coordinate_string(false, gps_info.y == TinyGPS::GPS_INVALID_ANGLE ? 0 : gps_info.y, lon);
+  sprintf(strbuffer, "%.2f", gps_info.faltitude == TinyGPS::GPS_INVALID_F_ALTITUDE ? 0.0 : gps_info.faltitude);
 
 #if ENABLE_100M_TRUNCATION
   truncate_100m(lat, lon);
@@ -748,18 +706,18 @@ bool gps_gen_timestamp(TinyGPS &gps, char *buf, unsigned long counts, unsigned l
   sprintf(buf, ("$%s,%04d,%02d-%02d-%02dT%02d:%02d:%02dZ,%ld,%ld,%ld,%c,%s,%c,%s,%c,%s,%c,%d,%ld"),  \
               NANO_HEADER, \
               config.device_id, \
-              year, month, day,  \
-              hour, minute, second, \
+              gps_info.year, gps_info.month, gps_info.day,  \
+              gps_info.hour, gps_info.minute, gps_info.second, \
               cpm, \
               cpb, \
               total_count, \
               geiger_status, \
-              lat, NS,\
-              lon, WE,\
+              lat, gps_info.NS,\
+              lon, gps_info.WE,\
               strbuffer, \
-              gps_status, \
-              nbsat  == TinyGPS::GPS_INVALID_SATELLITES ? 0 : nbsat, \
-              precission == TinyGPS::GPS_INVALID_HDOP ? 0 : precission);
+              gps_info.gps_status, \
+              gps_info.nbsat  == TinyGPS::GPS_INVALID_SATELLITES ? 0 : gps_info.nbsat, \
+              gps_info.precision == TinyGPS::GPS_INVALID_HDOP ? 0 : gps_info.precision);
 
   len = strlen(buf);
   buf[len] = '\0';
@@ -774,40 +732,6 @@ bool gps_gen_timestamp(TinyGPS &gps, char *buf, unsigned long counts, unsigned l
     sprintf(buf + len, ("*%X"), (int)chk);
 
 #if ENABLE_SSD1306
-  // compute distance
-  if (gps.status()) {
-    int trigger_dist = 25;
-    float flat = get_wgs84_coordinate(x);
-    float flon = get_wgs84_coordinate(y);
-
-    if(fspeed > 5)
-      // fpspeed/3.6 * 5s = 6.94 m
-      trigger_dist = 5;
-    if(fspeed > 10)
-      trigger_dist = 10;
-    if(fspeed > 15)
-      trigger_dist = 20;
-
-    if(gps_fix_first)
-    {
-      gps_last_lat = flat;
-      gps_last_lon = flon;
-      gps_fix_first = false;
-    }
-    else
-    {
-      // Distance in meters
-      unsigned long int dist = (long int)TinyGPS::distance_between(flat, flon, gps_last_lat, gps_last_lon);
-
-      if (dist > trigger_dist)
-      {
-        gps_distance += dist;
-        gps_last_lat = flat;
-        gps_last_lon = flon;
-      }
-    }
-  }
-
   // ready to display the data on screen
   display.clearDisplay();
   int offset = 0;
@@ -862,7 +786,7 @@ bool gps_gen_timestamp(TinyGPS &gps, char *buf, unsigned long counts, unsigned l
       } else {
         display.setTextColor(WHITE);
         display.setCursor(110, offset+8); 
-        sprintf(strbuffer,"%2d", nbsat);
+        sprintf(strbuffer,"%2d", gps_info.nbsat);
         display.print(strbuffer);
         sprintf(strbuffer, ("^"));
         display.println(strbuffer);
@@ -890,7 +814,7 @@ bool gps_gen_timestamp(TinyGPS &gps, char *buf, unsigned long counts, unsigned l
       if (toggle) {
         // Display distance
         //dtostrf((float)(gps_distance/1000.0), 0, 1, strbuffer); // replace by sprintf
-        sprintf(strbuffer, "%.1f", (float)(gps_distance/1000.0));
+        sprintf(strbuffer, "%.1f", (float)(gps_info.distance/1000.0));
         display.setCursor(115-(strlen(strbuffer)*6), offset+16); // textsize*8
         display.print(strbuffer);
         sprintf(strbuffer, ("km"));
@@ -899,7 +823,7 @@ bool gps_gen_timestamp(TinyGPS &gps, char *buf, unsigned long counts, unsigned l
         // Display altidude
         if (gps.status()) {
           //dtostrf(faltitude, 0, 0, strbuffer); // replace by sprintf
-          sprintf(strbuffer, "%.0f", faltitude);
+          sprintf(strbuffer, "%.0f", gps_info.faltitude);
         } else {
           sprintf(strbuffer, ("--"));
         }
@@ -1023,8 +947,8 @@ bool gps_gen_timestamp(TinyGPS &gps, char *buf, unsigned long counts, unsigned l
     if (sdcard_ready) {
       // Display date
       sprintf(strbuffer, ("%02d/%02d %02d:%02d:%02d"),  \
-          day, month, \
-          hour, minute, second);
+          gps_info.day, gps_info.month, \
+          gps_info.hour, gps_info.minute, gps_info.second);
       display.setCursor(0, offset+24); // textsize*8
       display.setTextSize(1);
       display.setTextColor(WHITE);
@@ -1078,7 +1002,7 @@ bool gps_gen_timestamp(TinyGPS &gps, char *buf, unsigned long counts, unsigned l
   // Display items toggling
   toggle ^= 1;
 
-  return (gps_status == AVAILABLE);
+  return (gps_info.gps_status == GPS_AVAILABLE);
 }
 
 /* setup the GPS module to 1Hz and RMC+GGA messages only */
