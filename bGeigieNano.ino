@@ -52,6 +52,7 @@ SYSTEM_MODE(MANUAL);//do not connect to cloud
 
 #include "InterruptCounter.h"
 
+#include "gps_thread.h"
 #include "ble_serial.h"
 
 // For some reason (ask Musti) ARDUINO
@@ -250,6 +251,9 @@ void setup()
 
   pinMode(PWR_OFF, INPUT);  // sense power switch state
 
+  // Start the GPS Thread
+  gpsThreadSetup(&gps);
+
 #if ENABLE_SSD1306
   delay(1000);
   //display.begin(SSD1306_SWITCHCAPVCC, 0x3C);  // Rob's display
@@ -379,7 +383,8 @@ void loop()
     }
   }
 
-  bool gpsReady = false;
+  // poll GPS update status
+  bool gpsReady = gpsIsReady();
 
 #if ENABLE_GEIGIE_SWITCH
   // Check geigie mode switch
@@ -407,33 +412,12 @@ void loop()
   }
 #endif
 
-  // For GPS_INTERVAL we work on parsing GPS sentences
-  for (unsigned long start = millis(); (elapsedTime(start) < GPS_INTERVAL) and !IS_READY;)
-  {
-
-    while (Serial2.available())
-    {
-      char c = Serial2.read();
-
-#if ENABLE_GPS_NMEA_LOG
-      Serial.print(c); // uncomment this line if you want to see the GPS data flowing
-#endif
-
-      if (gps.encode(c)) // Did a new valid sentence come in?
-        gpsReady = true;
-    }
-  }
-
-
   // generate CPM every TIME_INTERVAL seconds
   if IS_READY {
       unsigned long cpm=0, cpb=0;
 
       // obtain the count in the last bin
       cpb = interruptCounterCount();
-
-      // reset the pulse counter
-      interruptCounterReset();
 
       // insert count in sliding window and compute CPM
       shift_reg[reg_index] = cpb;     // put the count in the correct bin
