@@ -40,9 +40,12 @@ int _new_count_available = false;
 
 void time_is_up()
 {
-  // timer interrupt routine
-  _finished_count = _running_count;
-  _running_count = 0;
+  ATOMIC_BLOCK()
+  {
+    // timer interrupt routine
+    _finished_count = _running_count;
+    _running_count = 0;
+  }
   _new_count_available = true;
 }
 
