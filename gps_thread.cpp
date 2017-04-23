@@ -15,7 +15,7 @@ os_thread_return_t gpsUpdateLoop(void* param){
       while (Serial2.available())
       {
         if (_gpsReady)
-          _gpsReady = true;
+          _gpsReady = false;
 
         char c = Serial2.read();
 
