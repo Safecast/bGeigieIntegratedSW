@@ -37,7 +37,7 @@
 
 
 // Defining the public functions for the counter
-void interruptCounterSetup(int interrupt_pin, unsigned long delay);
+void interruptCounterSetup(int interrupt_pin, unsigned int period);
 void interruptCounterReset();
 int interruptCounterAvailable();
 unsigned long interruptCounterCount();

@@ -28,58 +28,71 @@
    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+#include "Application.h"
 #include "InterruptCounter.h"
 #include <limits.h>
 
-// Declare variables here
-int _interrupt_pin;
-unsigned long _start_time;
-unsigned long _delay;
-unsigned long _count;
+unsigned long _running_count;
+unsigned long _finished_count;
+int _new_count_available = false;
 
-// private methods here
-void interrupt_routine();
+// Private Methods
+
+void time_is_up()
+{
+  // timer interrupt routine
+  _finished_count = _running_count;
+  _running_count = 0;
+  _new_count_available = true;
+}
+
+void interrupt_routine()
+{
+  // Geiger event interrupt routine
+  _running_count++;
+}
+
+// Declare variables here
+Timer timer = Timer(1000, time_is_up);
+
+// Public methods
 
 // Constructor
-void interruptCounterSetup(int interrupt_pin, unsigned long delay)
+void interruptCounterSetup(int interrupt_pin, unsigned int period)
 {
-  _interrupt_pin = interrupt_pin;
-  _delay = delay;
-  _count = 0;
-  pinMode(_interrupt_pin, INPUT);
-  attachInterrupt(_interrupt_pin, interrupt_routine, RISING);
+  Serial.println("Setting things up.");
+  pinMode(interrupt_pin, INPUT);
+  attachInterrupt(interrupt_pin, interrupt_routine, RISING);
+
+  _running_count = 0;
+  _finished_count = 0;
+  _new_count_available = false;
+
+  timer.changePeriod(period);
+  timer.start();
+
 }
 
 // call this to start the counter
 void interruptCounterReset()
 {
-  // set start time
-  _start_time = millis();
+  timer.reset();
   // set count to zero (optional)
-  _count = 0;
+  _running_count = 0;
+  _finished_count = 0;
+  _new_count_available = false;
 }
 
 // This indicates when the count over the determined period is over
 int interruptCounterAvailable()
 {
-  // get current time
-  unsigned long now = millis();
-  // do basic check for millis overflow
-  if (now >= _start_time)
-    return (now - _start_time >= _delay);
-  else
-    return (ULONG_MAX + now - _start_time >= _delay);
+  return _new_count_available;
 }
 
 // return current number of counts
 unsigned long interruptCounterCount()
 {
-  return _count;
+  // reset the count available flag
+  _new_count_available = false;
+  return _finished_count;
 }
-
-// The interrupt routine, simply increment count on every event
-void interrupt_routine()
-{
-  _count++;
-}
-
