@@ -681,8 +681,6 @@ bool gps_gen_timestamp(TinyGPS &gps, char *buf, unsigned long counts, unsigned l
   memset(lon, 0, BUFFER_SZ);
   memset(strbuffer, 0, STRBUFFER_SZ);
 
-  gpsInfoUpdate();
-
   get_coordinate_string(true, gps_info.x == TinyGPS::GPS_INVALID_ANGLE ? 0 : gps_info.x, lat);
   get_coordinate_string(false, gps_info.y == TinyGPS::GPS_INVALID_ANGLE ? 0 : gps_info.y, lon);
   sprintf(strbuffer, "%.2f", gps_info.faltitude == TinyGPS::GPS_INVALID_F_ALTITUDE ? 0.0 : gps_info.faltitude);

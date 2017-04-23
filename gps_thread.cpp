@@ -27,8 +27,8 @@ float get_wgs84_coordinate(unsigned long val)
 // Update GPS info from new sentence
 void gpsInfoUpdate()
 {
-  //SINGLE_THREADED_BLOCK() // we don't want context switching here
-  //{
+  SINGLE_THREADED_BLOCK() // we don't want context switching here
+  {
     // get GPS date
     _gps->crack_datetime(
         &(_gps_info->year), 
@@ -39,8 +39,6 @@ void gpsInfoUpdate()
         &(_gps_info->second), 
         &(_gps_info->hundredths), 
         &(_gps_info->age));
-
-    Serial.println(_gps_info->year);
 
     if (TinyGPS::GPS_INVALID_AGE == _gps_info->age) 
     {
@@ -99,8 +97,7 @@ void gpsInfoUpdate()
         }
       }
     }
-
-  //}
+  } // end of single thread block
 }
 
 os_thread_return_t gpsUpdateLoop(void* param)
@@ -115,12 +112,11 @@ os_thread_return_t gpsUpdateLoop(void* param)
 
       char c = Serial2.read();
 
-      if (_gps->encode(c)) // Did a new valid sentence come in?
-      {
-        Serial.println("Processing new GPS info.");
+      if (c == '\n')  // update the info at then end of each line
         gpsInfoUpdate();
+
+      if (_gps->encode(c) || c == '\n') // Did a new valid sentence come in?
         _gpsReady = true;
-      }
     }
   }
 }
