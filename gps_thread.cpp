@@ -60,7 +60,7 @@ void gpsInfoUpdate()
     _gps_info->precision = _gps->hdop();
 
     _gps_info->NS = 'N';
-    _gps_info->WE = 'W';
+    _gps_info->WE = 'E';
     if (_gps_info->x < 0) { _gps_info->NS = 'S'; _gps_info->x = -_gps_info->x;}
     if (_gps_info->y < 0) { _gps_info->WE = 'W'; _gps_info->y = -_gps_info->y;}
 
