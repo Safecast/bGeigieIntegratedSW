@@ -235,6 +235,19 @@ void setup()
   digitalWrite(PWR_ON, HIGH); // keep power one
 
   pinMode(PWR_OFF, INPUT);  // sense power switch state
+  volatile int power_off_status = digitalRead(PWR_OFF); // pin read high when switch is off
+  if (power_off_status != LOW)
+  {
+    DEBUG_PRINT("Shutdown now");
+    display.clearDisplay();
+    display.setCursor(0, 0);
+    display.print("Shutdown now");
+    display.display();
+    delay(1000);
+    digitalWrite(PWR_ON, LOW);
+    while(1)
+      ;
+  }
 
   // Start the GPS Thread
   gpsThreadSetup(&gps, &gps_info);
@@ -242,7 +255,7 @@ void setup()
 #if ENABLE_SSD1306
   delay(1000);
   display.begin(SSD1306_SWITCHCAPVCC, 0x3C);  // Rob's display
-  //display.begin(SSD1306_SWITCHCAPVCC, 0x3D);  // Robin's display
+//  display.begin(SSD1306_SWITCHCAPVCC, 0x3D);  // Robin's display
   // show splashscreen logo
   display.display();
   
@@ -773,11 +786,12 @@ bool gps_gen_timestamp(TinyGPS &gps, char *buf, unsigned long counts, unsigned l
         display.println(strbuffer);
       } else {
         display.setTextColor(WHITE);
-        display.setCursor(91, offset+8); 
+        display.setCursor(110, offset+8); 
         sprintf(strbuffer,"%2d", gps_info.nbsat);
         display.print(strbuffer);
         sprintf(strbuffer, ("^"));
         display.println(strbuffer);
+    
       }
 
       // Display uSv/h
@@ -931,23 +945,6 @@ bool gps_gen_timestamp(TinyGPS &gps, char *buf, unsigned long counts, unsigned l
     // **********************************************************************
     // Common display parts
     // **********************************************************************
-
-
-     // Display Latitude and Longitude
-      sprintf_P(strbuffer, PSTR("LAT:%s,%c"),  \
-            lat, gps_info.NS);
-      display.setCursor(0, offset+40); // textsize*8
-      display.println(strbuffer);
-      sprintf_P(strbuffer, PSTR("LON:%s,%c"),  \       
-            lon, gps_info.WE);
-      display.setCursor(0, offset+48); // textsize*8
-      display.println(strbuffer);
-
-      //display copyright
-      display.setCursor(48, offset+56); // textsize*8
-      display.println("Safecast 2017");
-      
-      
     if (sdcard_ready) {
       // Display date
       sprintf(strbuffer, ("%02d/%02d %02d:%02d:%02d"),  \
@@ -962,7 +959,6 @@ bool gps_gen_timestamp(TinyGPS &gps, char *buf, unsigned long counts, unsigned l
       display.print(vbattery/10);
       display.println("Volt");
       
-      
     } else {
       display.setCursor(0, offset+24); // textsize*8
       display.setTextSize(1);
@@ -972,6 +968,8 @@ bool gps_gen_timestamp(TinyGPS &gps, char *buf, unsigned long counts, unsigned l
       display.setCursor(0, offset+32); // textsize*8
       float vbattery =(read_voltage(VOLTAGE_PIN));
       display.println(vbattery);
+
+      //reset GPS
 
 #ifdef LOGALARM_LED_PIN
       digitalWrite(LOGALARM_LED_PIN, LOW);
