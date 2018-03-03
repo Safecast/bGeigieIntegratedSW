@@ -30,6 +30,11 @@
    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+// 2018-03-03 V2.0.5r Added power "down mode" when charging. Hardware chnage is cable right side of R17 to pin  7(counting from bottom) right side of Duo and inverted the power sense logic.
+
+ 
+
+
 SYSTEM_MODE(MANUAL);//do not connect to cloud
 
 #include "Adafruit_GPS.h"
@@ -252,7 +257,7 @@ void setup()
 
   display.setTextColor(WHITE);
   display.setTextSize(1);
-  sprintf(strbuffer, ("Geigie Nano %s"), NANO_VERSION);
+  sprintf(strbuffer, ("Geigie Raku %s"), NANO_VERSION);
   display.setCursor((128-((strlen(strbuffer)+1)*6))/2, 0);
   if (config.type == GEIGIE_TYPE_B) {
     display.print("b");
@@ -292,7 +297,7 @@ void setup()
     display.print(config.user_name);
   }
   display.display();
-   delay(9000);
+   delay(2000);
   
 #endif
 
@@ -308,16 +313,24 @@ void loop()
   // Perform check for Soft shutdown
   pinMode(PWR_OFF, INPUT);  // for some reason this needs to be here. maybe a bug with redbear duo
   volatile int power_off_status = digitalRead(PWR_OFF); // pin read high when switch is off
-  if (power_off_status != LOW)
+  if (power_off_status != HIGH)
   {
-    DEBUG_PRINT("Shutdown now");
+    DEBUG_PRINT("Charging mode");
     display.clearDisplay();
+    display.setTextColor(WHITE);
+    display.setTextSize(1);
     display.setCursor(0, 0);
-    display.print("Shutdown now");
-    display.display();
-    delay(1000);
-    digitalWrite(PWR_ON, LOW);
-    while(1)
+    sprintf(strbuffer, ("Geigie Raku %s"), NANO_VERSION);
+    display.print(strbuffer);
+      display.setCursor(0, 10);
+      display.print("Charging mode");
+      //display copyright
+       display.setCursor(48,56); // textsize*8
+       display.println("Safecast 2018");
+      display.display();
+      delay(1000);
+      digitalWrite(PWR_ON, LOW);
+      while(1)
       ;
   }
 
@@ -945,7 +958,7 @@ bool gps_gen_timestamp(TinyGPS &gps, char *buf, unsigned long counts, unsigned l
 
       //display copyright
       display.setCursor(48, offset+56); // textsize*8
-      display.println("Safecast 2017");
+      display.println("Safecast 2018");
       
       
     if (sdcard_ready) {
