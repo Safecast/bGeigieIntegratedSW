@@ -70,13 +70,13 @@ void gpsInfoUpdate()
       float flat = get_wgs84_coordinate(_gps_info->x);
       float flon = get_wgs84_coordinate(_gps_info->y);
 
-      if(_gps_info->fspeed > 5)
-        // fpspeed/3.6 * 5s = 6.94 m
-        trigger_dist = 5;
-      if(_gps_info->fspeed > 10)
-        trigger_dist = 10;
-      if(_gps_info->fspeed > 15)
-        trigger_dist = 20;
+      // if(_gps_info->fspeed > 5)
+      //   // fpspeed/3.6 * 5s = 6.94 m
+      //   trigger_dist = 5;
+      // if(_gps_info->fspeed > 10)
+      //   trigger_dist = 10;
+      // if(_gps_info->fspeed > 15)
+      //   trigger_dist = 20;
 
       if(gps_fix_first)
       {
@@ -89,12 +89,12 @@ void gpsInfoUpdate()
         // Distance in meters
         unsigned long int dist = (long int)TinyGPS::distance_between(flat, flon, gps_last_lat, gps_last_lon);
 
-        if (dist > trigger_dist)
-        {
+        // if (dist > trigger_dist)
+        // {
           _gps_info->distance += dist;
           gps_last_lat = flat;
           gps_last_lon = flon;
-        }
+        // }
       }
     }
   } // end of single thread block

@@ -6,7 +6,7 @@
 //
 
 #define NANO_DEVICE_ID        0000
-#define NANO_VERSION       "2.0.5r"
+#define NANO_VERSION       "2.0.6r"
 #define NANO_HEADER        "BNRDD"
 #define NANO_CPM_FACTOR        334
 #define NANO_BQM2_FACTOR        37
@@ -15,8 +15,8 @@
 // Enable or Disable features
 //
 
-#define ENABLE_DEBUG             0
-#define ENABLE_DIAGNOSTIC        0
+#define ENABLE_DEBUG             1
+#define ENABLE_DIAGNOSTIC        1
 #define ENABLE_SLEEPMODE         0
 #define ENABLE_SSD1306           1
 #define ENABLE_HARDWARE_COUNTER  0
