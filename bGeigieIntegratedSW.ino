@@ -30,7 +30,7 @@
    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-// 2018-03-03 V2.0.5r Added power "down mode" when charging. Hardware chnage is cable right side of R17 to pin  7(counting from bottom) right side of Duo and inverted the power sense logic.
+// 2019-03-03 V2.0.5r Added power "down mode" when charging. Hardware chnage is cable right side of R17 to pin  7(counting from bottom) right side of Duo and inverted the power sense logic.
 
  
 
@@ -48,7 +48,7 @@ SYSTEM_MODE(MANUAL);//do not connect to cloud
 #include <math.h>
 #include <stdlib.h>
 #include "TinyGPS.h"
-
+//#include <TinyGPS++.h>
 #include "NanoSetup.h"
 #include "NanoConfig.h"
 #include "NanoDebug.h"
@@ -132,7 +132,8 @@ bool sdcard_ready = false;
 bool sdcard_inserted = false;
 
 // Gps settings ------------------------------------------------------------
-TinyGPS gps(true);
+TinyGPS gps;
+//TinyGPS gps(true);
 #define GPS_INTERVAL 1000
 gps_info_t gps_info;
 
@@ -326,7 +327,7 @@ void loop()
       display.print("Charging mode");
       //display copyright
        display.setCursor(48,56); // textsize*8
-       display.println("Safecast 2018");
+       display.println("Safecast 2019");
       display.display();
       delay(1000);
       digitalWrite(PWR_ON, LOW);
@@ -514,6 +515,7 @@ void loop()
           // write some diagnostics if asked to
           //dtostrf(read_voltage(VOLTAGE_PIN), 0, 1, strbuffer); // replace with sprintf
           sprintf(strbuffer, "%.1f", read_voltage(VOLTAGE_PIN));
+          sprintf(strbuffer, "%.1f", (float)(gps_info.distance/1000.0));
           myFile.print("$DIAG,");
           myFile.println(strbuffer);
 #endif
@@ -958,7 +960,7 @@ bool gps_gen_timestamp(TinyGPS &gps, char *buf, unsigned long counts, unsigned l
 
       //display copyright
       display.setCursor(48, offset+56); // textsize*8
-      display.println("Safecast 2018");
+      display.println("Safecast 2019");
       
       
     if (sdcard_ready) {

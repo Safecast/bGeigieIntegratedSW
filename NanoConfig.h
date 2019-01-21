@@ -6,7 +6,7 @@
 //
 
 #define NANO_DEVICE_ID        0000
-#define NANO_VERSION       "2.0.6r"
+#define NANO_VERSION       "2.0.8r"
 #define NANO_HEADER        "BNRDD"
 #define NANO_CPM_FACTOR        334
 #define NANO_BQM2_FACTOR        37
